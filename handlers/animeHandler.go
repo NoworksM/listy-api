@@ -17,49 +17,89 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/json"
-	"io/ioutil"
+	"fmt"
 	"net/http"
-	"noworks/listy-mal-api/models"
+	"strconv"
+	"time"
 
 	"github.com/gorilla/mux"
-	"gopkg.in/redis.v3"
+	"github.com/noworksm/listy-api/configuration"
+	"github.com/noworksm/listy-api/dal"
+	"github.com/noworksm/listy-api/logging"
+	"github.com/noworksm/listy-api/models"
+	"github.com/noworksm/listy-api/parsers"
 )
 
-var redisClient *redis.Client
-
 // InitAnimeRoutes Initialize routes for the Anime API
-func InitAnimeRoutes(router *mux.Router, client *redis.Client) {
-	redisClient = client
+func InitAnimeRoutes(router *mux.Router) {
 	router.HandleFunc("/anime/{animeId}", GetAnimeByID)
 	router.HandleFunc("/users/{userId}/anime", GetAnimeByUser)
 }
 
 // GetAnimeByID Handle Requests to get Anime by ID
 func GetAnimeByID(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
 	vars := mux.Vars(r)
-	animeID := vars["animeId"]
-
-	anime, err := redisClient.Get("anime:" + animeID).Result()
-	if err == redis.Nil {
-		// TODO: Fetch new Item from server
-		response, err := http.Get("http://myanimelist.net/anime/" + animeID)
-		if err != nil {
-			json.NewEncoder(w).Encode(models.Error{
-				Message: "An unknown error occured",
-				Reason:  err.Error(),
-			})
-			return
-		}
-		body, _ := ioutil.ReadAll(response.Body)
-	} else if err != nil {
-		json.NewEncoder(w).Encode(models.Error{
-			Message: "An unknown error occured",
-			Reason:  "",
-		})
+	rawID := vars["animeId"]
+	animeID, err := strconv.Atoi(rawID)
+	encoder := json.NewEncoder(w)
+	if err != nil {
+		writeError(encoder, "An unknown error occured", err.Error())
 		return
 	}
+
+	anime, err := dal.QueryAnimeByID(animeID)
+	if err != nil && err != sql.ErrNoRows {
+		logging.Error.Printf("An unknown error occured: %s", err.Error())
+		writeError(encoder, "An unknown error occured", err.Error())
+		return
+	}
+	if anime == nil {
+		if config.EnvironmentDetail.Debug {
+			logging.Debug.Printf("Anime %d not found, fetching data from server\n", animeID)
+		}
+		resp, err := http.Get(fmt.Sprintf("http://myanimelist.net/anime/%d", animeID))
+		// TODO: Handle possible errors with MAL Requests
+		fetched, err := parsers.ParseAnime(resp.Body)
+		if err != nil {
+			logging.Error.Print(err.Error())
+			writeError(encoder, "An unknown error has occured", err.Error())
+			return
+		}
+		logging.Info.Println(fetched)
+		_, err = dal.InsertAnime(&fetched)
+		if err != nil {
+			logging.Error.Print(err.Error())
+			writeError(encoder, "An unknown error has occured", err.Error())
+			return
+		}
+		anime, _ = dal.QueryAnimeByID(animeID)
+	} else if time.Since(anime.UpdatedAt).Hours() > 12 {
+		resp, err := http.Get(fmt.Sprintf("http://myanimelist.net/anime/%d", animeID))
+		// TODO: Handle possible errors with MAL Requests
+		fetched, err := parsers.ParseAnime(resp.Body)
+		if err != nil {
+			logging.Error.Print(err.Error())
+			writeError(encoder, "An unknown error has occured", err.Error())
+			return
+		}
+		_, err = dal.UpdateAnime(&fetched)
+		if err != nil {
+			logging.Error.Print(err.Error())
+			writeError(encoder, "An unknown error has occured", err.Error())
+			return
+		}
+		anime, _ = dal.QueryAnimeByID(animeID)
+	}
+
 	json.NewEncoder(w).Encode(anime)
+	logging.Info.Printf("Get Anime request handled in %s", time.Since(start))
+}
+
+func writeError(e *json.Encoder, message string, reason string) {
+	e.Encode(models.Error{Message: message, Reason: reason})
 }
 
 // GetAnimeByUser Get Anime on a users list

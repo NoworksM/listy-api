@@ -14,33 +14,25 @@
  * limitations under the License.
  */
 
-package main
+package logging
 
 import (
-	"database/sql"
 	"log"
-	"net/http"
-
-	"github.com/gorilla/mux"
-	"github.com/noworksm/listy-api/configuration"
-	"github.com/noworksm/listy-api/dal"
-	"github.com/noworksm/listy-api/handlers"
-	"github.com/noworksm/listy-api/logging"
-
-	_ "github.com/lib/pq"
+	"os"
 )
 
-func main() {
-	logging.Init()
-	config.InitConfig("config.json")
+// Debug Debug logger
+var Debug *log.Logger
 
-	conn, err := sql.Open("postgres", config.EnvironmentDetail.ConnectionString)
-	if err != nil {
-		panic(err)
-	}
-	dal.Connection = conn
-	router := mux.NewRouter().StrictSlash(true)
-	handlers.InitAnimeRoutes(router)
+// Error Error Logger
+var Error *log.Logger
 
-	log.Fatal(http.ListenAndServe(config.EnvironmentDetail.Domain, router))
+// Info Info Logger
+var Info *log.Logger
+
+// Init Initialize the logs in this package with their default output
+func Init() {
+	Info = log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
+	Debug = log.New(os.Stdout, "DEBUG: ", log.Ldate|log.Ltime|log.Lshortfile)
+	Error = log.New(os.Stderr, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile)
 }

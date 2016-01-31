@@ -1,0 +1,5 @@
+{
+    "ConnectionString": "postgres://test:test@localhost:5433/listy?sslmode=disable",
+    "Domain": ":8080",
+    "Debug": true
+}

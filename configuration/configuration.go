@@ -14,33 +14,32 @@
  * limitations under the License.
  */
 
-package main
+package config
 
 import (
-	"database/sql"
-	"log"
-	"net/http"
-
-	"github.com/gorilla/mux"
-	"github.com/noworksm/listy-api/configuration"
-	"github.com/noworksm/listy-api/dal"
-	"github.com/noworksm/listy-api/handlers"
-	"github.com/noworksm/listy-api/logging"
-
-	_ "github.com/lib/pq"
+	"encoding/json"
+	"os"
 )
 
-func main() {
-	logging.Init()
-	config.InitConfig("config.json")
+// EnvironmentDetail Global configuration for the site
+var EnvironmentDetail Configuration
 
-	conn, err := sql.Open("postgres", config.EnvironmentDetail.ConnectionString)
+// InitConfig Load the configuration from the specified config file
+func InitConfig(path string) Configuration {
+	config := Configuration{}
+	reader, err := os.Open(path)
 	if err != nil {
 		panic(err)
 	}
-	dal.Connection = conn
-	router := mux.NewRouter().StrictSlash(true)
-	handlers.InitAnimeRoutes(router)
+	decoder := json.NewDecoder(reader)
+	decoder.Decode(&config)
+	EnvironmentDetail = config
+	return config
+}
 
-	log.Fatal(http.ListenAndServe(config.EnvironmentDetail.Domain, router))
+// Configuration Enironment configuration
+type Configuration struct {
+	ConnectionString string
+	Domain           string
+	Debug            bool
 }
