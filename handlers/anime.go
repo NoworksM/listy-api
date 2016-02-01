@@ -76,7 +76,7 @@ func GetAnimeByID(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		anime, _ = dal.QueryAnimeByID(animeID)
-	} else if time.Since(anime.UpdatedAt).Hours() > 12 {
+	} else if time.Since(*anime.UpdatedAt).Hours() > 12 {
 		resp, err := http.Get(fmt.Sprintf("http://myanimelist.net/anime/%d", animeID))
 		// TODO: Handle possible errors with MAL Requests
 		fetched, err := parsers.ParseAnime(resp.Body)

@@ -35,6 +35,8 @@ import (
 
 const dateForm = "Jan 2, 2006"
 
+var cleanerRegex = regexp.MustCompile("\\s+")
+
 var idPath = xmlpath.MustCompile("//input[@name='aid']")
 var titlePath = xmlpath.MustCompile("//h1[@class='h1']/span[@itemprop='name']")
 var descriptionPath = xmlpath.MustCompile("//span[@itemprop='description']")
@@ -66,8 +68,9 @@ var membersRegex = regexp.MustCompile("\\s*Members:\\s*(.*)\\s*")
 var favoritesPath = xmlpath.MustCompile("//div[span='Favorites:']")
 var favoritesRegex = regexp.MustCompile("\\s*Favorites:\\s*(.*)\\s*")
 
-// ParseAnime Parse an Anime's data from a given html string
+// ParseAnime from an io.Reader to an HTML file for the specified anime
 func ParseAnime(htmlReader io.Reader) (models.Anime, error) {
+	// Read in the bytes so the data in the reader can be used for goQuery and xmlpath
 	raw, err := ioutil.ReadAll(htmlReader)
 	if err != nil {
 		logging.Error.Print(err.Error())
@@ -82,17 +85,21 @@ func ParseAnime(htmlReader io.Reader) (models.Anime, error) {
 		panic(err)
 	}
 
+	// Grab the node for the Anime's ID and parse it
 	idNode := doc.Find("input[name='aid']")
 	idStr, exists := idNode.Attr("value")
 	if !exists {
 		return models.Anime{}, errors.New("Invalid Html")
 	}
 	id, _ := strconv.ParseUint(idStr, 10, 32)
+	// Grab the node for the Aired date and parse it
 	airedNode := doc.Find("span:contains(Aired)").Parent()
 	aired := strings.TrimSpace(airedNode.Text())
 	aired = strings.TrimPrefix(aired, "Aired:")
 
-	buf = bytes.NewBuffer(raw)
+	// Create a new buffer for xmlpath to read from
+	buf.Reset()
+	buf.Write(raw)
 	root, err := xmlpath.ParseHTML(buf)
 	if err != nil {
 		logging.Error.Printf("xmlpath.v2 error: %s", err.Error())
@@ -111,11 +118,27 @@ func ParseAnime(htmlReader io.Reader) (models.Anime, error) {
 	popularityStr, _ := popularityPath.String(root)
 	favoritesStr, _ := favoritesPath.String(root)
 	dates := strings.Split(aired, " to ")
-	startDate, _ := time.Parse(dateForm, strings.TrimSpace(dates[0]))
-	endDate, _ := time.Parse(dateForm, strings.TrimSpace(dates[1]))
-
-	res := episodesRegex.FindStringSubmatch(episodesStr)
-	episodes, _ := strconv.ParseUint(res[1], 10, 32)
+	trimmedStartDate := strings.TrimSpace(dates[0])
+	var startDate *time.Time
+	if trimmedStartDate != "?" {
+		temp, _ := time.Parse(dateForm, trimmedStartDate)
+		startDate = &temp
+	}
+	trimmedEndDate := strings.TrimSpace(dates[1])
+	var endDate *time.Time
+	if trimmedEndDate != "?" {
+		temp, _ := time.Parse(dateForm, strings.TrimSpace(dates[1]))
+		endDate = &temp
+	}
+	var res []string
+	var episodes *uint
+	cleanedEpisodeStr := cleanerRegex.ReplaceAllString(episodesStr, " ")
+	if strings.TrimSpace(cleanedEpisodeStr) != "Episodes: Unknown" {
+		res = episodesRegex.FindStringSubmatch(episodesStr)
+		temp, _ := strconv.ParseUint(res[1], 10, 32)
+		converted := uint(temp)
+		episodes = &converted
+	}
 	res = englishTitleRegex.FindStringSubmatch(englishTitle)
 	if len(res) > 1 {
 		englishTitle = res[1]
@@ -142,7 +165,7 @@ func ParseAnime(htmlReader io.Reader) (models.Anime, error) {
 		Title:        title,
 		Description:  description,
 		EnglishTitle: englishTitle,
-		Episodes:     uint(episodes),
+		Episodes:     episodes,
 		Score:        float32(score),
 		Type:         typeStr,
 		Status:       status,
@@ -152,6 +175,6 @@ func ParseAnime(htmlReader io.Reader) (models.Anime, error) {
 		StartDate:    startDate,
 		EndDate:      endDate,
 		Favorites:    uint(favorites),
-		UpdatedAt:    now,
+		UpdatedAt:    &now,
 	}, nil
 }

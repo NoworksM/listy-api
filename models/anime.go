@@ -20,20 +20,20 @@ import "time"
 
 // Anime Struct to represent an Anime data object
 type Anime struct {
-	ID           uint      `json:"id"`
-	Title        string    `json:"title"`
-	EnglishTitle string    `json:"englishTitle"`
-	Description  string    `json:"description"`
-	Episodes     uint      `json:"episodes"`
-	Score        float32   `json:"score"`
-	Type         string    `json:"type"`
-	Status       string    `json:"status"`
-	Premiered    string    `json:"premiered"`
-	Rank         uint      `json:"rank"`
-	Popularity   uint      `json:"popularity"`
-	StartDate    time.Time `json:"startDate"`
-	EndDate      time.Time `json:"endDate"`
-	Favorites    uint      `json:"favorites"`
-	CreatedAt    time.Time `json:"createdAt"`
-	UpdatedAt    time.Time `json:"updatedAt"`
+	ID           uint       `json:"id"`
+	Title        string     `json:"title"`
+	EnglishTitle string     `json:"englishTitle"`
+	Description  string     `json:"description"`
+	Episodes     *uint      `json:"episodes"`
+	Score        float32    `json:"score"`
+	Type         string     `json:"type"`
+	Status       string     `json:"status"`
+	Premiered    string     `json:"premiered"`
+	Rank         uint       `json:"rank"`
+	Popularity   uint       `json:"popularity"`
+	StartDate    *time.Time `json:"startDate"`
+	EndDate      *time.Time `json:"endDate"`
+	Favorites    uint       `json:"favorites"`
+	CreatedAt    *time.Time `json:"createdAt"`
+	UpdatedAt    *time.Time `json:"updatedAt"`
 }
