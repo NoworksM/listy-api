@@ -68,7 +68,6 @@ func GetAnimeByID(w http.ResponseWriter, r *http.Request) {
 			writeError(encoder, "An unknown error has occured", err.Error())
 			return
 		}
-		logging.Info.Println(fetched)
 		_, err = dal.InsertAnime(&fetched)
 		if err != nil {
 			logging.Error.Print(err.Error())
@@ -94,7 +93,7 @@ func GetAnimeByID(w http.ResponseWriter, r *http.Request) {
 		anime, _ = dal.QueryAnimeByID(animeID)
 	}
 
-	json.NewEncoder(w).Encode(anime)
+	writeResponse(w, r, anime)
 	logging.Info.Printf("Get Anime request handled in %s", time.Since(start))
 }
 
