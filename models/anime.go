@@ -16,24 +16,28 @@
 
 package models
 
-import "time"
+import (
+	"encoding/xml"
+	"time"
+)
 
 // Anime Struct to represent an Anime data object
 type Anime struct {
-	ID           uint       `json:"id"`
-	Title        string     `json:"title"`
-	EnglishTitle string     `json:"englishTitle"`
-	Description  string     `json:"description"`
-	Episodes     *uint      `json:"episodes"`
-	Score        float32    `json:"score"`
-	Type         string     `json:"type"`
-	Status       string     `json:"status"`
-	Premiered    string     `json:"premiered"`
-	Rank         uint       `json:"rank"`
-	Popularity   uint       `json:"popularity"`
-	StartDate    *time.Time `json:"startDate"`
-	EndDate      *time.Time `json:"endDate"`
-	Favorites    uint       `json:"favorites"`
-	CreatedAt    *time.Time `json:"createdAt"`
-	UpdatedAt    *time.Time `json:"updatedAt"`
+	XMLName      xml.Name   `json:"-" xml:"anime"`
+	ID           uint       `json:"id" xml:"id"`
+	Title        string     `json:"title" xml:"title"`
+	EnglishTitle string     `json:"englishTitle" xml:"english-title"`
+	Description  string     `json:"description" xml:"description"`
+	Episodes     *uint      `json:"episodes" xml:"episodes"`
+	Score        float32    `json:"score" xml:"score"`
+	Type         string     `json:"type" xml:"type"`
+	Status       string     `json:"status" xml:"status"`
+	Premiered    string     `json:"premiered" xml:"premiered"`
+	Rank         uint       `json:"rank" xml:"rank"`
+	Popularity   uint       `json:"popularity" xml:"popularity"`
+	StartDate    *time.Time `json:"startDate" xml:"start-date"`
+	EndDate      *time.Time `json:"endDate" xml:"end-date"`
+	Favorites    uint       `json:"favorites" xml:"favorites"`
+	CreatedAt    *time.Time `json:"createdAt" xml:"created-at"`
+	UpdatedAt    *time.Time `json:"updatedAt" xml:"updated-at"`
 }

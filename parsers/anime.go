@@ -18,6 +18,7 @@ package parsers
 
 import (
 	"bytes"
+	"encoding/xml"
 	"errors"
 	"io"
 	"io/ioutil"
@@ -28,6 +29,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/noworksm/listy-api/logging"
+	"github.com/noworksm/listy-api/mal"
 	"github.com/noworksm/listy-api/models"
 
 	"gopkg.in/xmlpath.v2"
@@ -177,4 +179,36 @@ func ParseAnime(htmlReader io.Reader) (models.Anime, error) {
 		Favorites:    uint(favorites),
 		UpdatedAt:    &now,
 	}, nil
+}
+
+// ParseAnimeList given the XML response for the users anime list
+func ParseAnimeList(r io.Reader) (userInfo mal.UserAnimeInfo, entries []mal.AnimeEntry, err error) {
+	decoder := xml.NewDecoder(r)
+
+	token, _ := decoder.Token()
+
+	for token != nil {
+
+		switch se := token.(type) {
+		case xml.StartElement:
+			if se.Name.Local == "myinfo" {
+				decoder.DecodeElement(&userInfo, &se)
+				sum := userInfo.WatchingCount
+				sum += userInfo.CompletedCount
+				sum += userInfo.OnHoldCount
+				sum += userInfo.DroppedCount
+				sum += userInfo.PlanToWatchCount
+				entries = make([]mal.AnimeEntry, sum)
+			}
+			if se.Name.Local == "anime" {
+				temp := mal.AnimeEntry{}
+				decoder.DecodeElement(&temp, &se)
+				entries = append(entries, temp)
+			}
+		}
+
+		token, _ = decoder.Token()
+	}
+
+	return
 }

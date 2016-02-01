@@ -18,7 +18,6 @@ package handlers
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -28,14 +27,13 @@ import (
 	"github.com/noworksm/listy-api/configuration"
 	"github.com/noworksm/listy-api/dal"
 	"github.com/noworksm/listy-api/logging"
-	"github.com/noworksm/listy-api/models"
 	"github.com/noworksm/listy-api/parsers"
 )
 
-// InitAnimeRoutes Initialize routes for the Anime API
-func InitAnimeRoutes(router *mux.Router) {
+// initAnimeRoutes Initialize routes for the Anime API
+func initAnimeRoutes(router *mux.Router) {
 	router.HandleFunc("/anime/{animeId}", GetAnimeByID)
-	router.HandleFunc("/users/{userId}/anime", GetAnimeByUser)
+	router.HandleFunc("/users/{username}/anime", GetAnimeByUser)
 }
 
 // GetAnimeByID Handle Requests to get Anime by ID
@@ -44,16 +42,15 @@ func GetAnimeByID(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	rawID := vars["animeId"]
 	animeID, err := strconv.Atoi(rawID)
-	encoder := json.NewEncoder(w)
 	if err != nil {
-		writeError(encoder, "An unknown error occured", err.Error())
+		writeError(w, r, "An unknown error occured", err.Error())
 		return
 	}
 
 	anime, err := dal.QueryAnimeByID(animeID)
 	if err != nil && err != sql.ErrNoRows {
 		logging.Error.Printf("An unknown error occured: %s", err.Error())
-		writeError(encoder, "An unknown error occured", err.Error())
+		writeError(w, r, "An unknown error occured", err.Error())
 		return
 	}
 	if anime == nil {
@@ -65,13 +62,13 @@ func GetAnimeByID(w http.ResponseWriter, r *http.Request) {
 		fetched, err := parsers.ParseAnime(resp.Body)
 		if err != nil {
 			logging.Error.Print(err.Error())
-			writeError(encoder, "An unknown error has occured", err.Error())
+			writeError(w, r, "An unknown error has occured", err.Error())
 			return
 		}
 		_, err = dal.InsertAnime(&fetched)
 		if err != nil {
 			logging.Error.Print(err.Error())
-			writeError(encoder, "An unknown error has occured", err.Error())
+			writeError(w, r, "An unknown error has occured", err.Error())
 			return
 		}
 		anime, _ = dal.QueryAnimeByID(animeID)
@@ -81,13 +78,13 @@ func GetAnimeByID(w http.ResponseWriter, r *http.Request) {
 		fetched, err := parsers.ParseAnime(resp.Body)
 		if err != nil {
 			logging.Error.Print(err.Error())
-			writeError(encoder, "An unknown error has occured", err.Error())
+			writeError(w, r, "An unknown error has occured", err.Error())
 			return
 		}
 		_, err = dal.UpdateAnime(&fetched)
 		if err != nil {
 			logging.Error.Print(err.Error())
-			writeError(encoder, "An unknown error has occured", err.Error())
+			writeError(w, r, "An unknown error has occured", err.Error())
 			return
 		}
 		anime, _ = dal.QueryAnimeByID(animeID)
@@ -97,11 +94,20 @@ func GetAnimeByID(w http.ResponseWriter, r *http.Request) {
 	logging.Info.Printf("Get Anime request handled in %s", time.Since(start))
 }
 
-func writeError(e *json.Encoder, message string, reason string) {
-	e.Encode(models.Error{Message: message, Reason: reason})
-}
-
 // GetAnimeByUser Get Anime on a users list
 func GetAnimeByUser(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+	vars := mux.Vars(r)
+	username := vars["username"]
+	resp, err := http.Get(fmt.Sprintf("http://myanimelist.net/malappinfo.php?u=%s&status=all&type=anime", username))
+	if err != nil {
+		writeError(w, r, "An unknown error occured", err.Error())
+		return
+	}
 
+	_, entries, err := parsers.ParseAnimeList(resp.Body)
+
+	writeResponse(w, r, entries)
+
+	logging.Info.Printf("GET: /users/%s/anime request handled in %s", username, time.Since(start))
 }
